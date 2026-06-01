@@ -1,0 +1,45 @@
+# ── Archivos de entorno — nunca subir al repositorio ─────
+.env
+.env.local
+.env.production
+.env.*.local
+
+# ── Dependencias ──────────────────────────────────────────
+node_modules/
+
+# ── Compilados ────────────────────────────────────────────
+dist/
+build/
+.angular/
+
+# ── Datos de base de datos locales ───────────────────────
+postgres/
+postgres_backup/
+pg_wal/
+pg_xact/
+
+# ── Archivos subidos por usuarios ────────────────────────
+backend-epsas/uploads/
+
+# ── Backups SQL generados localmente ─────────────────────
+backup_*.sql
+
+# ── Logs ─────────────────────────────────────────────────
+*.log
+logs/
+npm-debug.log*
+
+# ── OS ───────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── IDE ──────────────────────────────────────────────────
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# ── Cobertura de tests ───────────────────────────────────
+coverage/
+.nyc_output/

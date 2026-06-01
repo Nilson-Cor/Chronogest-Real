@@ -1,0 +1,112 @@
+# ============================================================
+#  ChronoGest + EPSAS — Docker Compose
+# ============================================================
+
+services:
+
+  # ── PostgreSQL — BD del backend-epsas ────────────────────
+  postgres:
+    image: postgres:14.3
+    container_name: chronogest_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: chronogest2024
+      POSTGRES_DB: epsas_db
+    ports:
+      - "5435:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/init-postgres.sql:/docker-entrypoint-initdb.d/init-postgres.sql:ro
+    networks:
+      - chronogest_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # ── Backend EPSAS (NestJS + PostgreSQL) — Chronogest ─────
+  backend:
+    build:
+      context: ./backend-epsas
+      dockerfile: Dockerfile
+      target: dev           # usa ts-node watch, no necesita dist compilado
+    container_name: chronogest_backend
+    restart: unless-stopped
+    environment:
+      PORT: 3000
+      NODE_ENV: development
+      TZ: America/Bogota
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USERNAME: postgres
+      DB_PASSWORD: chronogest2024
+      DB_NAME: epsas_db
+      HORARIOS_DB_HOST: postgres
+      HORARIOS_DB_PORT: 5432
+      HORARIOS_DB_NAME: horarios_db
+      JWT_SECRET: chronogest_sena_jwt_secret_2024_very_secure_key_abc123
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      CORS_ORIGIN: http://localhost:4200
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./backend-epsas:/app
+      - backend_modules:/app/node_modules
+      - uploads_data:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - chronogest_net
+
+  # ── Redis — Cola BullMQ ───────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: chronogest_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - chronogest_net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Angular Frontend — Dev server ─────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: dev
+    container_name: chronogest_frontend
+    restart: unless-stopped
+    ports:
+      - "4200:4200"
+    volumes:
+      - ./frontend:/app
+      - frontend_modules:/app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - chronogest_net
+    profiles:
+      - full
+
+networks:
+  chronogest_net:
+    driver: bridge
+
+volumes:
+  pgdata:
+  pgdata_mysql:
+  uploads_data:
+  backend_modules:
+  frontend_modules:
