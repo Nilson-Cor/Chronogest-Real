@@ -1,6 +1,6 @@
 # ChronoGest 2.1
 
-Sistema de gestión de horarios para el SENA — Centros de Formación.  
+Sistema de gestión de horarios SENA — Centros de Formación.  
 Permite administrar instructores, fichas, ambientes y horarios en tiempo real.
 
 **Stack:** Angular 21 · NestJS 11 · PostgreSQL 16 · Redis 7 · BullMQ · Docker
