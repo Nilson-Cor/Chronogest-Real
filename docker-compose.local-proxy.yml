@@ -1,0 +1,26 @@
+# ============================================================
+#  Override ADITIVO para probar subdominios de tenant en local.
+#  No modifica docker-compose.yml — se usa combinado con -f:
+#
+#    docker compose -f docker-compose.yml -f docker-compose.local-proxy.yml \
+#      --profile full --profile tenant-proxy up --build
+#
+#  Luego accede por ejemplo a http://huila.localhost:8080
+#  (el slug "huila" debe existir como CentroTenant activo en MASTER_DB).
+# ============================================================
+services:
+  nginx-tenant-proxy:
+    image: nginx:alpine
+    container_name: chronogest_nginx_tenant_proxy
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - ./docker/nginx.local-tenant-proxy.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - chronogest_net
+    profiles:
+      - tenant-proxy

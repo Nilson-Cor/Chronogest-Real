@@ -23,6 +23,7 @@ backend-epsas/uploads/
 
 # ── Backups SQL generados localmente ─────────────────────
 backup_*.sql
+/backups/
 
 # ── Logs ─────────────────────────────────────────────────
 *.log

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 210" fill="currentColor">
+  <defs>
+    <!-- Mask cuts SENA text out of the bar, so background shows through -->
+    <mask id="sena-mask">
+      <rect width="200" height="210" fill="white"/>
+      <text x="100" y="88" font-family="Arial Black, Impact, sans-serif"
+            font-size="28" font-weight="900" text-anchor="middle"
+            letter-spacing="3" fill="black">SENA</text>
+    </mask>
+  </defs>
+  <!-- Head circle -->
+  <circle cx="100" cy="26" r="22"/>
+  <!-- Horizontal body bar (arms) — SENA text cut out via mask -->
+  <rect x="4" y="56" width="192" height="40" rx="5" mask="url(#sena-mask)"/>
+  <!-- Left leg -->
+  <polygon points="72,96 52,196 72,196 92,96"/>
+  <!-- Right leg -->
+  <polygon points="128,96 108,196 128,196 148,196 128,96"/>
+</svg>
