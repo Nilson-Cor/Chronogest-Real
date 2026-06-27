@@ -44,6 +44,7 @@ services:
       retries: 5
 
   backend:
+    image: chronogest-backend-prod
     build:
       context: ./backend-epsas
       dockerfile: Dockerfile
@@ -86,6 +87,7 @@ services:
       - chronogest_net_prod
 
   frontend:
+    image: chronogest-frontend-prod
     build:
       context: ./frontend
       dockerfile: Dockerfile

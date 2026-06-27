@@ -218,10 +218,10 @@ import { ToastService } from '../../../core/services/toast.service';
             <tr>
               <td style="white-space:nowrap;">{{ s.fecha | date:'dd/MM/yy HH:mm' }}</td>
               <td style="font-size:12px;">
-                @if (s.horarioActual) {
-                  <div><strong>{{ LABELS[s.horarioActual.diaSemana] }}</strong></div>
-                  <div>{{ s.horarioActual.horaInicio?.slice(0,5) }} — {{ s.horarioActual.horaFin?.slice(0,5) }}</div>
-                  <div style="color:var(--text-muted);">{{ s.horarioActual.ambiente?.nombre }}</div>
+                @if (s.snapshotActual) {
+                  <div><strong>{{ LABELS[s.snapshotActual.diaSemana] || s.snapshotActual.diaSemana }}</strong></div>
+                  <div>{{ s.snapshotActual.horaInicio }} — {{ s.snapshotActual.horaFin }}</div>
+                  <div style="color:var(--text-muted);">{{ s.snapshotActual.ambienteNombre }}</div>
                 } @else { — }
               </td>
               <td style="font-size:12px;">
@@ -453,7 +453,14 @@ export class InstructorSolicitudesComponent implements OnInit {
         ambiente:    h.ambienteId   ? (ambMap.get(String(h.ambienteId))     ?? null) : null,
         instructor:  h.instructorId ? (instMap.get(String(h.instructorId))  ?? null) : null,
       }));
-      this.todosHorarios.set(enriched);
+
+      // Un líder solo debe ver los horarios de los ambientes que pertenecen
+      // a su área liderada, no todos los horarios del sistema.
+      const final = (user?.esLider && user?.areaLiderada)
+        ? enriched.filter(h => h.ambiente?.area_nombre === user.areaLiderada)
+        : enriched;
+
+      this.todosHorarios.set(final);
     });
 
     if (user?.id) {
@@ -527,7 +534,7 @@ export class InstructorSolicitudesComponent implements OnInit {
     const h = this.horarioSeleccionado();
     const payload = {
       instructorId:        this.auth.currentUser()!.id,
-      horarioIdActual:     this.selectedId(),
+      asignacionId:        this.selectedId(),
       razon:               this.form.razon,
       archivoAdjuntoUrl:   this.form.archivoAdjuntoUrl,
       // Snapshot del horario actual en el momento de crear la solicitud

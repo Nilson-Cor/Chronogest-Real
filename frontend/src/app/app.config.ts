@@ -17,7 +17,7 @@ import {
   Pencil, Trash2, Search, CheckCircle, XCircle,
   Clock, BookOpen, Send, Database, CalendarPlus, UserCog, HelpCircle, Play, Square, Hourglass,
   // Iconos de solicitudes
-  Inbox, List, MessageSquare, Paperclip, Download, ZoomIn, Ban,
+  Inbox, List, MessageSquare, MessageCircle, Paperclip, Download, ZoomIn, Ban,
   Building, GitBranch, FileText, ClipboardList,
   // Horarios
   Sunrise, Loader, Info,
@@ -59,7 +59,7 @@ export const appConfig: ApplicationConfig = {
       Pencil, Trash2, Search, CheckCircle, XCircle,
       Clock, BookOpen, Send, Database, CalendarPlus, UserCog, HelpCircle, Play, Square, Hourglass,
       // Iconos de solicitudes
-      Inbox, List, MessageSquare, Paperclip, Download, ZoomIn, Ban,
+      Inbox, List, MessageSquare, MessageCircle, Paperclip, Download, ZoomIn, Ban,
       Building, GitBranch, FileText, ClipboardList,
       // Horarios
       Sunrise, Loader, Info,

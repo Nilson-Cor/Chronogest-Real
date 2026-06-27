@@ -37,7 +37,7 @@ export interface Competencia {
 export interface SolicitudCambio {
   id: string;
   instructorId: string;
-  horarioIdActual?: string;
+  asignacionId?: string;
   horarioPropuesto?: Record<string, any>;
   razon?: string;
   estado: 'pendiente' | 'aprobado' | 'rechazado' | 'cancelada';

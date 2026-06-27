@@ -1,13 +1,16 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, computed } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ApiService } from '../../../core/services/api.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { forkJoin } from 'rxjs';
 import { LucideAngularModule } from 'lucide-angular';
+import { DonutChartComponent, DonutSegment } from '../../../shared/components/donut-chart.component';
+import { BarChartComponent, BarItem } from '../../../shared/components/bar-chart.component';
+import { DIAS_LABELS } from '../../../core/models/user.model';
 
 @Component({
   selector: 'app-admin-dashboard',
-  imports: [RouterLink, LucideAngularModule],
+  imports: [RouterLink, LucideAngularModule, DonutChartComponent, BarChartComponent],
   template: `
     <!-- WELCOME BANNER -->
     <div class="welcome-banner">
@@ -87,20 +90,28 @@ import { LucideAngularModule } from 'lucide-angular';
       </div>
     </a>
 
-    <!-- QUICK ACCESS -->
-    <div class="grid-3 mt-6 cards-grid">
-      @for (card of quickCards; track card.title) {
-      <a class="quick-card" [routerLink]="card.path">
-        <div class="quick-icon">
-          <lucide-icon [name]="card.icon" [size]="28"></lucide-icon>
-        </div>
-        <div>
-          <h4>{{ card.title }}</h4>
-          <p>{{ card.desc }}</p>
-        </div>
-        <span class="quick-link">Ir al módulo →</span>
-      </a>
-      }
+    <!-- ESTADÍSTICAS GENERALES DEL SISTEMA -->
+    <div class="section-title mt-6">
+      <lucide-icon name="trending-up" [size]="16"></lucide-icon>
+      <span>Estadísticas Generales del Sistema</span>
+    </div>
+    <div class="charts-grid mt-3">
+      <div class="chart-card">
+        <h4>Horarios por Jornada</h4>
+        <app-donut-chart [data]="jornadaSegments()"></app-donut-chart>
+      </div>
+      <div class="chart-card">
+        <h4>Clases por Día de la Semana</h4>
+        <app-bar-chart [data]="diaItems()"></app-bar-chart>
+      </div>
+      <div class="chart-card">
+        <h4>Solicitudes de Cambio por Estado</h4>
+        <app-donut-chart [data]="solicitudesSegments()"></app-donut-chart>
+      </div>
+      <div class="chart-card">
+        <h4>Ambientes por Área</h4>
+        <app-bar-chart [data]="areaItems()"></app-bar-chart>
+      </div>
     </div>
   `,
   styles: [`
@@ -132,46 +143,84 @@ import { LucideAngularModule } from 'lucide-angular';
     .pendientes-label { font-size: 10px; color: rgba(255,255,255,.85); font-weight: 700; text-transform: uppercase; }
     .sin-pendientes { display: flex; align-items: center; gap: 6px; font-size: 13px; color: rgba(255,255,255,.8); }
 
-    /* Quick cards */
-    .quick-card {
-      background: var(--surface); border-radius: 12px; padding: 24px;
+    /* Estadísticas */
+    .section-title { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; color: var(--text); }
+    .charts-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+    .chart-card {
+      background: var(--surface); border-radius: 12px; padding: 20px 22px;
       border: 1px solid var(--border); box-shadow: var(--shadow);
-      display: flex; flex-direction: column; gap: 10px; text-decoration: none;
-      transition: all .2s; cursor: pointer;
     }
-    .quick-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
-    .quick-icon { color: var(--navy); }
-    .quick-card h4 { font-size: 15px; color: var(--text); margin-bottom: 4px; }
-    .quick-card p { font-size: 13px; color: var(--text-muted); }
-    .quick-link { font-size: 13px; color: var(--blue); font-weight: 600; margin-top: auto; }
+    .chart-card h4 { font-size: 13px; color: var(--text-muted); font-weight: 700; margin-bottom: 14px; text-transform: uppercase; letter-spacing: .03em; }
+
     @media (max-width: 900px) {
       .grid-4 { grid-template-columns: 1fr 1fr; }
-      .cards-grid { grid-template-columns: 1fr; }
+      .charts-grid { grid-template-columns: 1fr; }
       .solicitudes-card { flex-direction: column; align-items: flex-start; }
     }
-    .cards-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
   `],
 })
 export class AdminDashboardComponent implements OnInit {
   stats = signal({ horarios: 0, ambientes: 0, fichas: 0, instructores: 0 });
   solicitudesPendientes = signal(0);
 
+  private horariosData = signal<any[]>([]);
+  private solicitudesData = signal<any[]>([]);
+  private ambientesData = signal<any[]>([]);
+
+  readonly LABELS = DIAS_LABELS;
+
   get user() { return this.auth.currentUser; }
 
-  quickCards = [
-    { icon: 'user', title: 'Horarios Instructor', desc: 'Gestiona los horarios específicos de cada instructor.', path: '/app/admin/horarios-instructor' },
-    { icon: 'layout-dashboard', title: 'Horarios Fichas', desc: 'Consulta y gestiona los horarios asignados a las fichas.', path: '/app/admin/horarios-fichas' },
-    { icon: 'building-2', title: 'Horarios Ambientes', desc: 'Administra y verifica la ocupación de ambientes.', path: '/app/admin/horarios-ambientes' },
-    { icon: 'calendar-plus', title: 'Programador Eventos', desc: 'Programa creación rápida de eventos en matriz.', path: '/app/admin/programador-eventos' },
-    { icon: 'layout-list', title: 'Programador de Fichas', desc: 'Seguimiento de competencias e intensidad horaria por ficha.', path: '/app/admin/programador-fichas' },
-    { icon: 'users', title: 'Usuarios', desc: 'Administra los usuarios del sistema.', path: '/app/admin/usuarios' },
-  ];
+  jornadaSegments = computed<DonutSegment[]>(() => {
+    const conteo: Record<string, number> = { manana: 0, tarde: 0, noche: 0 };
+    this.horariosData().forEach((h: any) => { if (h.jornada && conteo[h.jornada] !== undefined) conteo[h.jornada]++; });
+    return [
+      { label: 'Mañana', value: conteo['manana'], color: '#1d4ed8' },
+      { label: 'Tarde', value: conteo['tarde'], color: '#f59e0b' },
+      { label: 'Noche', value: conteo['noche'], color: '#1e293b' },
+    ].filter(s => s.value > 0);
+  });
+
+  diaItems = computed<BarItem[]>(() => {
+    const dias = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+    const conteo: Record<string, number> = {};
+    dias.forEach(d => conteo[d] = 0);
+    this.horariosData().forEach((h: any) => { if (h.diaSemana && conteo[h.diaSemana] !== undefined) conteo[h.diaSemana]++; });
+    return dias.map(d => ({ label: this.LABELS[d], value: conteo[d], color: 'var(--navy)' }));
+  });
+
+  solicitudesSegments = computed<DonutSegment[]>(() => {
+    const conteo: Record<string, number> = { pendiente: 0, aprobado: 0, rechazado: 0, cancelada: 0 };
+    this.solicitudesData().forEach((s: any) => {
+      const e = s.estado === 'aprobada' ? 'aprobado' : s.estado === 'rechazada' ? 'rechazado' : s.estado;
+      if (conteo[e] !== undefined) conteo[e]++;
+    });
+    return [
+      { label: 'Pendientes', value: conteo['pendiente'], color: '#f59e0b' },
+      { label: 'Aprobadas', value: conteo['aprobado'], color: '#16a34a' },
+      { label: 'Rechazadas', value: conteo['rechazado'], color: '#dc2626' },
+      { label: 'Canceladas', value: conteo['cancelada'], color: '#94a3b8' },
+    ].filter(s => s.value > 0);
+  });
+
+  areaItems = computed<BarItem[]>(() => {
+    const conteo = new Map<string, number>();
+    this.ambientesData().forEach((a: any) => {
+      const area = a.area_nombre || a.area?.nombre || 'Sin área';
+      conteo.set(area, (conteo.get(area) ?? 0) + 1);
+    });
+    return [...conteo.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6)
+      .map(([label, value]) => ({ label, value, color: 'var(--blue)' }));
+  });
 
   constructor(private api: ApiService, public auth: AuthService) {}
 
   ngOnInit() {
     forkJoin({
-      horarios: this.api.getHorariosStats(),
+      horarios: this.api.getHorarios(),
+      horariosStats: this.api.getHorariosStats(),
       ambientes: this.api.getAmbientes(),
       fichas: this.api.getFichas(),
       instructores: this.api.getInstructoresStats(),
@@ -179,7 +228,7 @@ export class AdminDashboardComponent implements OnInit {
     }).subscribe({
       next: (res: any) => {
         this.stats.set({
-          horarios: res.horarios?.total ?? 0,
+          horarios: res.horariosStats?.total ?? 0,
           ambientes: Array.isArray(res.ambientes) ? res.ambientes.length : 0,
           fichas: Array.isArray(res.fichas) ? res.fichas.filter((f: any) => ['activo', 'activa'].includes(f.estado)).length : 0,
           instructores: res.instructores?.total ?? 0,
@@ -188,6 +237,10 @@ export class AdminDashboardComponent implements OnInit {
           ? res.solicitudes.filter((s: any) => s.estado === 'pendiente').length
           : 0;
         this.solicitudesPendientes.set(pendientes);
+
+        this.horariosData.set(Array.isArray(res.horarios) ? res.horarios : []);
+        this.solicitudesData.set(Array.isArray(res.solicitudes) ? res.solicitudes : []);
+        this.ambientesData.set(Array.isArray(res.ambientes) ? res.ambientes : []);
       },
     });
   }

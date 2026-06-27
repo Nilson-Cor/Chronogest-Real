@@ -114,7 +114,7 @@ export class AmbientesController {
     }
 
     @Get('disponibles-transversal')
-    async disponiblesTransversal(@Query('dia') dia: string, @Query('jornada') jornada: string) {
+    async disponiblesTransversal(@Query('dia') dia: string, @Query('jornada') jornada: string, @Query('tipo') tipo?: string) {
         await this._deactivateStale();
         const now = new Date();
         const nowMin = now.getHours() * 60 + now.getMinutes();
@@ -122,7 +122,10 @@ export class AmbientesController {
         const pad = (n: number) => String(n).padStart(2, '0');
         const todayStr = now.getFullYear() + '-' + pad(now.getMonth()+1) + '-' + pad(now.getDate());
 
-        const todos = await this.ambienteRepo.find({ relations: ['area'] });
+        const todos = await this.ambienteRepo.find({
+            relations: ['area'],
+            ...(tipo && tipo !== 'ambientes' ? { where: { tipo } } : {}),
+        });
         // Asignaciones para ese dia/jornada (JOIN con horario para filtrar por dia_semana y jornada)
         const asignaciones = await this.asignacionRepo
             .createQueryBuilder('a')

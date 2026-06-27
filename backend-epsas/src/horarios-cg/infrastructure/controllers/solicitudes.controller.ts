@@ -2,6 +2,7 @@
 import { Repository, Not } from "typeorm";
 import { SolicitudCambio } from "../persistence/solicitud-cambio.entity";
 import { AsignacionHorario } from "../persistence/asignacion-horario.entity";
+import { Horario } from "../persistence/horario.entity";
 import { Competencia } from "../persistence/competencia.entity";
 import { Persona } from "../../../personas/infrastructure/persistence/persona.entity";
 import { JwtAuthGuard } from "../../../auth/jwt-auth.guard";
@@ -26,6 +27,10 @@ export class SolicitudesController {
 
     private get asignacionRepo(): Repository<AsignacionHorario> {
         return CentroTenantContextService.getHorariosDataSource().getRepository(AsignacionHorario);
+    }
+
+    private get horarioRepo(): Repository<Horario> {
+        return CentroTenantContextService.getHorariosDataSource().getRepository(Horario);
     }
 
     private get competenciaRepo(): Repository<Competencia> {
@@ -127,8 +132,10 @@ export class SolicitudesController {
                 // Actualizar horario plantilla si hay cambios de tiempo
                 const horarioPatch = limpiarDto({ diaSemana: prop["diaSemana"], jornada: prop["jornada"], horaInicio: prop["horaInicio"], horaFin: prop["horaFin"] });
                 if (Object.keys(horarioPatch).length && asignacion.horario) {
+                    // La relacion asignacion->horario no tiene cascade configurado,
+                    // asi que hay que guardar el Horario explicitamente.
                     Object.assign(asignacion.horario, horarioPatch);
-                    // Nota: el horario se guarda en cascade a traves de la relacion
+                    await this.horarioRepo.save(asignacion.horario);
                 }
 
                 if (instrCambio && instrEf) {
@@ -160,7 +167,10 @@ export class SolicitudesController {
                 }
             }
         }
-        return this.repo.save(s);
+        await this.repo.save(s);
+        // Recargar con la relacion asignacion/horario ya actualizada — "s" en
+        // memoria conserva la version cargada al inicio, antes de los cambios.
+        return this.repo.findOne({ where: { id: s.id }, relations: ["asignacion", "asignacion.horario"] });
     }
 
     @Patch(":id/cancelar")
