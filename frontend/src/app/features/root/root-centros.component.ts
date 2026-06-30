@@ -14,6 +14,13 @@ interface CentroForm {
   horariosDbName: string;
   horariosDbHost: string;
   horariosDbPort: number;
+  adminEmail: string;
+}
+
+interface AdminCreado {
+  email: string;
+  password: string;
+  centroNombre: string;
 }
 
 function emptyForm(): CentroForm {
@@ -21,6 +28,7 @@ function emptyForm(): CentroForm {
     nombre: '', slug: '', dominio: '',
     epsasDbName: 'epsas_db', epsasDbHost: 'postgres', epsasDbPort: 5432,
     horariosDbName: 'horarios_db', horariosDbHost: 'postgres', horariosDbPort: 5432,
+    adminEmail: '',
   };
 }
 
@@ -105,6 +113,13 @@ function emptyForm(): CentroForm {
               <label class="form-label">Dominio / IP del servidor</label>
               <input class="form-control" [(ngModel)]="form.dominio" placeholder="192.168.1.105 o midominio.com">
             </div>
+            @if (!form.id) {
+              <div class="form-group" style="grid-column:1 / -1;">
+                <label class="form-label">Correo del administrador inicial</label>
+                <input class="form-control" [(ngModel)]="form.adminEmail" placeholder="Opcional — por defecto admin@{{ form.slug || 'slug' }}.local">
+                <span class="form-hint">Se creará una cuenta de administrador en este tenant. La contraseña se genera automáticamente y solo se mostrará una vez al terminar.</span>
+              </div>
+            }
             <div class="form-group">
               <label class="form-label">Base de datos epsas — nombre</label>
               <input class="form-control" [(ngModel)]="form.epsasDbName">
@@ -134,6 +149,37 @@ function emptyForm(): CentroForm {
         </div>
       </div>
     }
+
+    @if (adminCreado()) {
+      <div class="modal-overlay">
+        <div class="modal modal-lg" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <h3><lucide-icon name="shield-check" [size]="18" style="vertical-align:-3px;margin-right:6px;"></lucide-icon>Centro creado correctamente</h3>
+          </div>
+          <p class="cred-intro">
+            Cuenta de administrador creada para <strong>{{ adminCreado()!.centroNombre }}</strong>.
+            Copia y entrega estas credenciales ahora — <strong>la contraseña no se volverá a mostrar</strong>.
+          </p>
+          <div class="cred-box">
+            <div class="cred-row">
+              <span class="cred-label">Correo</span>
+              <code class="cred-value">{{ adminCreado()!.email }}</code>
+            </div>
+            <div class="cred-row">
+              <span class="cred-label">Contraseña</span>
+              <code class="cred-value">{{ adminCreado()!.password }}</code>
+            </div>
+          </div>
+          @if (copiado()) { <span class="copiado-msg">Copiado al portapapeles</span> }
+          <div class="btn-row mt-4">
+            <button class="btn btn-outline" (click)="copiarCredenciales()">
+              <lucide-icon name="copy" [size]="14"></lucide-icon> Copiar
+            </button>
+            <button class="btn btn-primary" (click)="adminCreado.set(null)">Entendido</button>
+          </div>
+        </div>
+      </div>
+    }
   `,
   styles: [`
     .page-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
@@ -144,6 +190,13 @@ function emptyForm(): CentroForm {
     .btn-row { display: flex; justify-content: flex-end; gap: 12px; }
     code { background: var(--surface2); padding: 2px 6px; border-radius: 4px; font-size: 12px; }
     @media (max-width: 700px) { .grid-2 { grid-template-columns: 1fr; } }
+    .form-hint { display: block; font-size: 11.5px; color: var(--text-muted); margin-top: 4px; }
+    .cred-intro { font-size: 13.5px; color: var(--text); margin: 4px 0 14px; line-height: 1.5; }
+    .cred-box { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+    .cred-row { display: flex; align-items: center; gap: 10px; }
+    .cred-label { font-size: 12px; font-weight: 700; color: #166534; width: 90px; flex-shrink: 0; }
+    .cred-value { background: #fff; border: 1px solid #d1fae5; padding: 6px 10px; border-radius: 6px; font-size: 13px; flex: 1; }
+    .copiado-msg { display: block; margin-top: 8px; font-size: 12px; color: #166534; font-weight: 600; }
   `],
 })
 export class RootCentrosComponent implements OnInit {
@@ -153,6 +206,8 @@ export class RootCentrosComponent implements OnInit {
   saving = signal(false);
   formError = signal('');
   modalOpen = signal(false);
+  adminCreado = signal<AdminCreado | null>(null);
+  copiado = signal(false);
   form: CentroForm = emptyForm();
 
   constructor(private rootApi: RootApiService) {}
@@ -181,6 +236,7 @@ export class RootCentrosComponent implements OnInit {
       id: c.id, nombre: c.nombre, slug: c.slug, dominio: c.dominio,
       epsasDbName: c.epsasDbName, epsasDbHost: c.epsasDbHost, epsasDbPort: c.epsasDbPort,
       horariosDbName: c.horariosDbName, horariosDbHost: c.horariosDbHost, horariosDbPort: c.horariosDbPort,
+      adminEmail: '',
     };
     this.formError.set('');
     this.modalOpen.set(true);
@@ -193,16 +249,46 @@ export class RootCentrosComponent implements OnInit {
     }
     this.saving.set(true);
     this.formError.set('');
-    const { id, ...dto } = this.form;
-    const obs = id ? this.rootApi.updateCentro(id, dto) : this.rootApi.createCentro(dto);
-    obs.subscribe({
-      next: () => { this.saving.set(false); this.modalOpen.set(false); this.cargar(); },
+    const { id, adminEmail, ...rest } = this.form;
+
+    if (id) {
+      this.rootApi.updateCentro(id, rest).subscribe({
+        next: () => { this.saving.set(false); this.modalOpen.set(false); this.cargar(); },
+        error: (e) => { this.saving.set(false); this.formError.set(e?.error?.message ?? 'No se pudo guardar el centro de formación'); },
+      });
+      return;
+    }
+
+    const dto = adminEmail?.trim() ? { ...rest, adminEmail: adminEmail.trim() } : rest;
+    this.rootApi.createCentro(dto).subscribe({
+      next: (res: any) => {
+        this.saving.set(false);
+        this.modalOpen.set(false);
+        this.cargar();
+        if (res?.adminInicial) {
+          this.adminCreado.set({
+            email: res.adminInicial.email,
+            password: res.adminInicial.password,
+            centroNombre: res?.centro?.nombre ?? this.form.nombre,
+          });
+        }
+      },
       error: (e) => { this.saving.set(false); this.formError.set(e?.error?.message ?? 'No se pudo guardar el centro de formación'); },
     });
   }
 
+  copiarCredenciales() {
+    const c = this.adminCreado();
+    if (!c) return;
+    const texto = `Correo: ${c.email}\nContraseña: ${c.password}`;
+    navigator.clipboard?.writeText(texto).then(() => {
+      this.copiado.set(true);
+      setTimeout(() => this.copiado.set(false), 2500);
+    });
+  }
+
   eliminar(c: any) {
-    if (!confirm(`¿Eliminar el centro "${c.nombre}"? Esta acción no se puede deshacer.`)) return;
+    if (!confirm(`¿Eliminar permanentemente el centro "${c.nombre}"? Esta acción no se puede deshacer (las bases de datos epsas_db/horarios_db asignadas NO se borran, solo el registro del tenant).`)) return;
     this.rootApi.deleteCentro(c.id).subscribe({
       next: () => this.cargar(),
       error: (e) => this.error.set(e?.error?.message ?? 'No se pudo eliminar el centro'),

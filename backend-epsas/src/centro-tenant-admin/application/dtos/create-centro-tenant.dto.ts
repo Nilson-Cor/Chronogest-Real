@@ -4,6 +4,7 @@ import {
   IsOptional,
   IsInt,
   IsIn,
+  IsEmail,
   Matches,
 } from 'class-validator';
 
@@ -50,4 +51,9 @@ export class CreateCentroTenantDto {
   @IsOptional()
   @IsInt({ message: 'horariosDbPort debe ser un número entero' })
   horariosDbPort?: number;
+
+  /** Correo del primer usuario administrador del tenant. Si se omite, se usa admin@<slug>.local */
+  @IsOptional()
+  @IsEmail({}, { message: 'adminEmail debe ser un correo válido' })
+  adminEmail?: string;
 }
