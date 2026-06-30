@@ -52,6 +52,6 @@ import { RootAuthGuard } from './infrastructure/guards/root-auth.guard';
     RootAuthService,
     RootAuthGuard,
   ],
-  exports: [CentroTenantAdminService, CentroDataSourceFactory],
+  exports: [CentroTenantRepository, CentroTenantAdminService, CentroDataSourceFactory],
 })
 export class CentroTenantAdminModule {}

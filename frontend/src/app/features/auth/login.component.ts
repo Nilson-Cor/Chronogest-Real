@@ -59,13 +59,6 @@ type AuthView = 'login' | 'pin' | 'register' | 'forgot' | 'verify-code' | 'reset
 
           <form (ngSubmit)="doLogin()" #loginForm="ngForm">
             <div class="form-group mt-4">
-              <label class="form-label">Centro de Formación</label>
-              <input class="form-control" type="text" [ngModel]="centroSlug"
-                     (ngModelChange)="onCentroSlugChange($event)"
-                     name="centroSlug" placeholder="default" [ngModelOptions]="{standalone: true}">
-              <span class="form-hint">El identificador (slug) de tu Centro de Formación. Pídeselo a tu administrador si no lo conoces.</span>
-            </div>
-            <div class="form-group mt-4">
               <label class="form-label">Número de documento o correo</label>
               <input class="form-control" type="text" [(ngModel)]="identifier"
                      name="identifier" placeholder="tu_documento o correo@ejemplo.com" required>
@@ -83,11 +76,25 @@ type AuthView = 'login' | 'pin' | 'register' | 'forgot' | 'verify-code' | 'reset
               </button>
             </div>
 
-            @if (error()) {
-            <div class="error-msg">{{ error() }}</div>
+            <button type="button" class="advanced-toggle" (click)="mostrarCentroAvanzado = !mostrarCentroAvanzado">
+              <lucide-icon name="settings" [size]="12"></lucide-icon>
+              {{ mostrarCentroAvanzado ? 'Ocultar opción avanzada' : '¿Problemas para entrar? Opción avanzada' }}
+            </button>
+            @if (mostrarCentroAvanzado) {
+              <div class="form-group mt-3">
+                <label class="form-label">Centro de Formación (opcional)</label>
+                <input class="form-control" type="text" [ngModel]="centroSlug"
+                       (ngModelChange)="onCentroSlugChange($event)"
+                       name="centroSlug" placeholder="default" [ngModelOptions]="{standalone: true}">
+                <span class="form-hint">Normalmente no necesitas llenar esto — el sistema detecta tu Centro de Formación automáticamente. Solo complétalo si tu administrador te lo pide específicamente.</span>
+              </div>
             }
 
-            <button class="btn-submit" type="submit" [disabled]="loading()">
+            @if (error()) {
+            <div class="error-msg mt-3">{{ error() }}</div>
+            }
+
+            <button class="btn-submit mt-3" type="submit" [disabled]="loading()">
               @if (loading()) { <span class="spinner"></span> } @else {
                 <lucide-icon name="lock" [size]="16"></lucide-icon>
               }
@@ -344,6 +351,11 @@ type AuthView = 'login' | 'pin' | 'register' | 'forgot' | 'verify-code' | 'reset
       font-size: 13px; padding: 0;
     }
     .link-btn:hover { text-decoration: underline; }
+    .advanced-toggle {
+      display: flex; align-items: center; gap: 5px; background: none; border: none;
+      color: #9ca3af; cursor: pointer; font-size: 11.5px; padding: 0; margin-top: 14px;
+    }
+    .advanced-toggle:hover { color: #6b7280; }
     .session-expired-banner {
       display: flex; align-items: center; gap: 8px;
       background: #fff7ed; color: #92400e; border: 1px solid #fcd34d;
@@ -406,6 +418,7 @@ export class LoginComponent implements OnInit {
   showPass = false;
   loading = signal(false);
   error = signal('');
+  mostrarCentroAvanzado = false;
 
   // PIN
   pin = '';
@@ -553,7 +566,17 @@ export class LoginComponent implements OnInit {
 
   private doNormalLogin() {
     this.loading.set(true);
-    this.auth.login(this.identifier, this.password).subscribe({
+    // Si el usuario abrió "opción avanzada" y escribió un Centro de
+    // Formación específico, se respeta tal cual (login normal, que usa el
+    // slug ya fijado por onCentroSlugChange). En el caso normal — la gran
+    // mayoría de usuarios — se detecta el centro automáticamente por
+    // credenciales, sin que tengan que saber qué es un "slug".
+    const usarSlugManual = this.mostrarCentroAvanzado && this.centroSlug?.trim();
+    const obs = usarSlugManual
+      ? this.auth.login(this.identifier, this.password)
+      : this.auth.loginAuto(this.identifier, this.password);
+
+    obs.subscribe({
       next: (res) => {
         this.loading.set(false);
         const role = res.user.rol;

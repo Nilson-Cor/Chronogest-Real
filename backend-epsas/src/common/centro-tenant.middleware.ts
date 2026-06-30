@@ -9,7 +9,10 @@ const HOSTS_LOCALES = ['localhost', '127.0.0.1'];
 // Deben quedar exentas de la resolución por subdominio sin importar el host.
 // Se comparan contra req.originalUrl (ver use()), que sí conserva el prefijo
 // /api; se incluyen ambas variantes (con y sin /api) por seguridad.
-const PREFIJOS_SIN_TENANT = ['/admin/centros-tenant', '/root/auth', '/api/admin/centros-tenant', '/api/root/auth'];
+const PREFIJOS_SIN_TENANT = [
+  '/admin/centros-tenant', '/root/auth', '/auth/login-auto',
+  '/api/admin/centros-tenant', '/api/root/auth', '/api/auth/login-auto',
+];
 
 /**
  * CentroTenantMiddleware

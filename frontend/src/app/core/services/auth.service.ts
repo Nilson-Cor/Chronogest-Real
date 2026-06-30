@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { tap } from 'rxjs';
 import { User, LoginResponse } from '../models/user.model';
 import { environment } from '../../../environments/environment';
+import { TenantService } from './tenant.service';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -13,7 +14,7 @@ export class AuthService {
 
   currentUser = signal<User | null>(this.loadUser());
 
-  constructor(private http: HttpClient, private router: Router) {}
+  constructor(private http: HttpClient, private router: Router, private tenant: TenantService) {}
 
   get token(): string | null {
     return localStorage.getItem(this.TOKEN_KEY);
@@ -33,6 +34,23 @@ export class AuthService {
         localStorage.setItem(this.TOKEN_KEY, res.access_token);
         localStorage.setItem(this.USER_KEY, JSON.stringify(res.user));
         this.currentUser.set(res.user);
+      }),
+    );
+  }
+
+  /**
+   * Login para usuarios finales: no requiere saber ni escribir el slug del
+   * Centro de Formación — el backend busca en qué tenant existen esas
+   * credenciales. Al resolverse, fija el tenant detectado (`centroSlug`)
+   * para que todas las peticiones siguientes usen el centro correcto.
+   */
+  loginAuto(identifier: string, password: string) {
+    return this.http.post<LoginResponse & { centroSlug: string }>(`${this.API}/login-auto`, { identifier, password }).pipe(
+      tap((res) => {
+        localStorage.setItem(this.TOKEN_KEY, res.access_token);
+        localStorage.setItem(this.USER_KEY, JSON.stringify(res.user));
+        this.currentUser.set(res.user);
+        if (res.centroSlug) this.tenant.setSlug(res.centroSlug);
       }),
     );
   }

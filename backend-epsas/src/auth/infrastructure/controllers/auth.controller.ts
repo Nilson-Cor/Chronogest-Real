@@ -37,6 +37,19 @@ export class AuthController {
         return this.authService.login(dto, res);
     }
 
+    /**
+     * Login que NO requiere el header x-centro-tenant ni que el usuario
+     * sepa el slug de su Centro de Formación: se busca automaticamente en
+     * que tenant existen esas credenciales. Excluido de CentroTenantMiddleware
+     * (ver PREFIJOS_SIN_TENANT) porque justamente todavia no se sabe el tenant.
+     */
+    @Public()
+    @Post('login-auto')
+    loginAuto(@Body() body: any, @Res({ passthrough: true }) res: Response) {
+        const dto: LoginDto = { login: body.login ?? body.identifier, password: body.password };
+        return this.authService.loginAuto(dto, res);
+    }
+
     @Public()
     @Get('validar-token')
     validarToken(@Req() req: ExpressRequest) {

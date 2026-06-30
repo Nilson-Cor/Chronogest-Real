@@ -17,6 +17,8 @@ import { RegisterDto } from '../dtos/register.dto';
 import { ACCESO_QUEUE } from '../../../queue/queue.constants';
 import { RegistrarAccesoJob } from '../../../queue/processors/acceso.processor';
 import { CentroTenantContextService } from '../../../common/centro-tenant-context.service';
+import { CentroTenantRepository } from '../../../centro-tenant-admin/infrastructure/persistence/centro-tenant.repository';
+import { CentroDataSourceFactory } from '../../../database/centro-datasource.factory';
 
 @Injectable()
 export class AuthService {
@@ -24,6 +26,8 @@ export class AuthService {
     @InjectQueue(ACCESO_QUEUE)
     private readonly accesoQueue: Queue<RegistrarAccesoJob>,
     private readonly jwtService: JwtService,
+    private readonly centroTenantRepo: CentroTenantRepository,
+    private readonly centroDataSourceFactory: CentroDataSourceFactory,
   ) {}
 
   private get credencialRepository(): Repository<Credencial> {
@@ -188,6 +192,46 @@ export class AuthService {
         idUsuario: credencial.usuario.idUsuario, aplicativoId: credencial.usuario.aplicativo?.idAplicativo,
       },
     };
+  }
+
+  /**
+   * Login sin que el usuario tenga que conocer ni escribir el slug del
+   * Centro de Formación: busca la credencial por `login` en cada tenant
+   * activo y entra al primero donde exista Y la contraseña coincida.
+   * Si el mismo correo/login existe en varios centros (ej. un correo
+   * genérico de administrador reutilizado), se prueba la contraseña en
+   * todos antes de declarar "credenciales inválidas" — no basta con
+   * encontrar el login en el primer tenant para descartar los demás.
+   * Pensado para usuarios finales no técnicos — el campo "Centro de
+   * Formación" manual queda como opción avanzada/respaldo en la UI.
+   */
+  async loginAuto(dto: LoginDto, res?: Response): Promise<any> {
+    const tenants = await this.centroTenantRepo.obtenerTodos();
+    const activos = tenants.filter((t) => t.estado === 'activo');
+
+    for (const tenant of activos) {
+      let epsasDs;
+      let horariosDs;
+      try {
+        epsasDs = await this.centroDataSourceFactory.getEpsasDataSource(tenant.slug);
+        horariosDs = await this.centroDataSourceFactory.getHorariosDataSource(tenant.slug);
+      } catch {
+        continue; // tenant con base de datos inalcanzable — probar el siguiente
+      }
+
+      const credencial = await epsasDs.getRepository(Credencial).findOne({ where: { login: dto.login } });
+      if (!credencial) continue;
+
+      const passwordValida = await bcrypt.compare(dto.password, credencial.password);
+      if (!passwordValida) continue; // mismo login en otro tenant — seguir probando
+
+      return CentroTenantContextService.run(tenant.slug, epsasDs, horariosDs, async () => {
+        const resultado = await this.login(dto, res);
+        return { ...resultado, centroSlug: tenant.slug } as any;
+      });
+    }
+
+    throw new UnauthorizedException('Credenciales inválidas');
   }
 
   async cambiarPassword(login: string, passwordActual: string, passwordNuevo: string): Promise<void> {

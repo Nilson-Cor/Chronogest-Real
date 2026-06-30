@@ -8,11 +8,13 @@ import { AuthController } from './infrastructure/controllers/auth.controller';
 import { JwtStrategy } from './jwt.strategy';
 import { ACCESO_QUEUE } from '../queue/queue.constants';
 import { CommonModule } from '../common/common.module';
+import { CentroTenantAdminModule } from '../centro-tenant-admin/centro-tenant-admin.module';
 
 @Module({
   imports: [
     PassportModule,
     CommonModule,
+    CentroTenantAdminModule,
     BullModule.registerQueue({ name: ACCESO_QUEUE }),
     JwtModule.registerAsync({
       imports: [ConfigModule],
