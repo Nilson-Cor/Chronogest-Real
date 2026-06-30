@@ -37,7 +37,7 @@ export const EPSAS_ENTITIES = [
   Notificacion,
 ];
 
-const HORARIOS_ENTITIES = [Horario, AsignacionHorario, Competencia, SolicitudCambio, Evento];
+export const HORARIOS_ENTITIES = [Horario, AsignacionHorario, Competencia, SolicitudCambio, Evento];
 
 const SLUG_MASTER_RESERVADO = 'master';
 

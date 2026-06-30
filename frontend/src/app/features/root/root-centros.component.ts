@@ -25,11 +25,18 @@ interface AdminCreado {
 
 function emptyForm(): CentroForm {
   return {
+    // epsasDbName/horariosDbName quedan vacíos a propósito: cada tenant nuevo
+    // necesita su PROPIA base de datos. Reutilizar "epsas_db"/"horarios_db"
+    // (las del tenant "default") mezclaría los datos de dos centros distintos.
     nombre: '', slug: '', dominio: '',
-    epsasDbName: 'epsas_db', epsasDbHost: 'postgres', epsasDbPort: 5432,
-    horariosDbName: 'horarios_db', horariosDbHost: 'postgres', horariosDbPort: 5432,
+    epsasDbName: '', epsasDbHost: 'postgres', epsasDbPort: 5432,
+    horariosDbName: '', horariosDbHost: 'postgres', horariosDbPort: 5432,
     adminEmail: '',
   };
+}
+
+function slugify(texto: string): string {
+  return texto.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
 }
 
 @Component({
@@ -107,7 +114,7 @@ function emptyForm(): CentroForm {
             </div>
             <div class="form-group">
               <label class="form-label">Slug</label>
-              <input class="form-control" [(ngModel)]="form.slug" placeholder="huila" [disabled]="!!form.id">
+              <input class="form-control" [ngModel]="form.slug" (ngModelChange)="onSlugChange($event)" placeholder="huila" [disabled]="!!form.id">
             </div>
             <div class="form-group" style="grid-column:1 / -1;">
               <label class="form-label">Dominio / IP del servidor</label>
@@ -122,7 +129,7 @@ function emptyForm(): CentroForm {
             }
             <div class="form-group">
               <label class="form-label">Base de datos epsas — nombre</label>
-              <input class="form-control" [(ngModel)]="form.epsasDbName">
+              <input class="form-control" [(ngModel)]="form.epsasDbName" placeholder="epsas_huila" [disabled]="!!form.id">
             </div>
             <div class="form-group">
               <label class="form-label">Base de datos epsas — host</label>
@@ -130,12 +137,20 @@ function emptyForm(): CentroForm {
             </div>
             <div class="form-group">
               <label class="form-label">Base de datos horarios — nombre</label>
-              <input class="form-control" [(ngModel)]="form.horariosDbName">
+              <input class="form-control" [(ngModel)]="form.horariosDbName" placeholder="horarios_huila" [disabled]="!!form.id">
             </div>
             <div class="form-group">
               <label class="form-label">Base de datos horarios — host</label>
               <input class="form-control" [(ngModel)]="form.horariosDbHost">
             </div>
+            @if (!form.id) {
+              <div class="form-group" style="grid-column:1 / -1;">
+                <span class="form-hint">
+                  <lucide-icon name="info" [size]="12" style="vertical-align:-2px;"></lucide-icon>
+                  Estas bases de datos se crean y migran automáticamente al guardar — deben ser nombres nuevos, distintos a los de cualquier otro centro.
+                </span>
+              </div>
+            }
           </div>
 
           @if (formError()) { <div class="error-banner mt-3">{{ formError() }}</div> }
@@ -229,6 +244,24 @@ export class RootCentrosComponent implements OnInit {
     this.form = emptyForm();
     this.formError.set('');
     this.modalOpen.set(true);
+  }
+
+  /** Mientras se crea un centro nuevo, sugiere nombres de BD a partir del slug
+   *  (solo si el usuario no los ha editado manualmente todavía). */
+  onSlugChange(valor: string) {
+    const slugAnterior = this.form.slug;
+    const sugeridoEpsasAnterior = `epsas_${slugify(slugAnterior)}`;
+    const sugeridoHorariosAnterior = `horarios_${slugify(slugAnterior)}`;
+
+    this.form.slug = valor;
+    const base = slugify(valor);
+
+    if (!this.form.epsasDbName || this.form.epsasDbName === sugeridoEpsasAnterior) {
+      this.form.epsasDbName = base ? `epsas_${base}` : '';
+    }
+    if (!this.form.horariosDbName || this.form.horariosDbName === sugeridoHorariosAnterior) {
+      this.form.horariosDbName = base ? `horarios_${base}` : '';
+    }
   }
 
   abrirEditar(c: any) {

@@ -30,6 +30,9 @@ export class CreateCentroTenantDto {
 
   @IsString({ message: 'epsasDbName debe ser texto' })
   @IsNotEmpty({ message: 'epsasDbName es obligatorio' })
+  @Matches(/^[a-zA-Z_][a-zA-Z0-9_]*$/, {
+    message: 'epsasDbName solo puede contener letras, números y guiones bajos, y no puede empezar con número',
+  })
   epsasDbName: string;
 
   @IsOptional()
@@ -42,6 +45,9 @@ export class CreateCentroTenantDto {
 
   @IsString({ message: 'horariosDbName debe ser texto' })
   @IsNotEmpty({ message: 'horariosDbName es obligatorio' })
+  @Matches(/^[a-zA-Z_][a-zA-Z0-9_]*$/, {
+    message: 'horariosDbName solo puede contener letras, números y guiones bajos, y no puede empezar con número',
+  })
   horariosDbName: string;
 
   @IsOptional()

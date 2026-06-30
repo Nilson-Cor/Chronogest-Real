@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, BadRequestException, Logger } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
@@ -11,11 +11,20 @@ import { Aplicativo } from '../../../aplicativos/infrastructure/persistence/apli
 import { Persona } from '../../../personas/infrastructure/persistence/persona.entity';
 import { Usuario } from '../../../usuarios/infrastructure/persistence/usuario.entity';
 import { Credencial } from '../../../credenciales/infrastructure/persistence/credencial.entity';
-import { EPSAS_ENTITIES } from '../../../database/centro-datasource.factory';
+import { EPSAS_ENTITIES, HORARIOS_ENTITIES } from '../../../database/centro-datasource.factory';
+import { InitEpsas1782400343717 } from '../../../database/migrations/1782400343717-InitEpsas';
+import { InitHorarios1782400474926 } from '../../../database/migrations-horarios/1782400474926-InitHorarios';
 
 export interface AdminInicialCreado {
   email: string;
   password: string;
+}
+
+interface ConexionBD {
+  host?: string;
+  port?: number;
+  username?: string;
+  password?: string;
 }
 
 @Injectable()
@@ -30,10 +39,74 @@ export class CentroTenantAdminService {
     if (existente) {
       throw new ConflictException(`Ya existe un Centro de Formación con el slug "${dto.slug}"`);
     }
+
+    // Las bases de datos se aprovisionan ANTES de guardar el tenant: si fallan,
+    // no queda un registro de tenant "fantasma" apuntando a nada.
+    try {
+      await this.asegurarBaseDeDatos(dto.epsasDbName, { host: dto.epsasDbHost, port: dto.epsasDbPort });
+      await this.asegurarBaseDeDatos(dto.horariosDbName, { host: dto.horariosDbHost, port: dto.horariosDbPort });
+      await this.migrarBaseDeDatos(EPSAS_ENTITIES, [InitEpsas1782400343717], dto.epsasDbName, { host: dto.epsasDbHost, port: dto.epsasDbPort });
+      await this.migrarBaseDeDatos(HORARIOS_ENTITIES, [InitHorarios1782400474926], dto.horariosDbName, { host: dto.horariosDbHost, port: dto.horariosDbPort });
+    } catch (error) {
+      this.logger.error(`No se pudieron aprovisionar las bases de datos del tenant "${dto.slug}": ${(error as Error).message}`);
+      throw new BadRequestException(
+        `No se pudieron crear/migrar las bases de datos (${dto.epsasDbName}, ${dto.horariosDbName}) en ${dto.epsasDbHost ?? 'el host configurado'}. Verifica el host/puerto y que el servidor Postgres sea accesible. Detalle: ${(error as Error).message}`,
+      );
+    }
+
     const centroTenant = this.centroTenantRepo.crear(dto);
     const guardado = await this.centroTenantRepo.guardar(centroTenant);
     const adminInicial = await this.sembrarEpsasDb(dto);
     return { centro: guardado, adminInicial };
+  }
+
+  /**
+   * Crea la base de datos `nombre` en el servidor Postgres indicado, si aun
+   * no existe. Se conecta a la base "postgres" del mismo servidor (no se
+   * puede ejecutar CREATE DATABASE estando conectado a la base que se va a
+   * crear) usando las credenciales administrativas del servidor.
+   */
+  private async asegurarBaseDeDatos(nombre: string, conexion: ConexionBD): Promise<void> {
+    const admin = new DataSource({
+      type: 'postgres',
+      host: conexion.host ?? process.env.DB_HOST,
+      port: conexion.port ?? parseInt(process.env.DB_PORT ?? '5435', 10),
+      username: process.env.DB_USERNAME,
+      password: process.env.DB_PASSWORD,
+      database: 'postgres',
+    });
+    try {
+      await admin.initialize();
+      const existe = await admin.query('SELECT 1 FROM pg_database WHERE datname = $1', [nombre]);
+      if (!existe.length) {
+        // El nombre de la base no admite placeholders parametrizados en DDL;
+        // se valida primero contra el formato ya restringido del DTO (slug-like)
+        // mas un identificador entre comillas dobles escapadas.
+        await admin.query(`CREATE DATABASE "${nombre.replace(/"/g, '""')}"`);
+      }
+    } finally {
+      if (admin.isInitialized) await admin.destroy();
+    }
+  }
+
+  /** Ejecuta las migraciones iniciales sobre `nombre` si todavia no se han aplicado. */
+  private async migrarBaseDeDatos(entities: any[], migrations: any[], nombre: string, conexion: ConexionBD): Promise<void> {
+    const dataSource = new DataSource({
+      type: 'postgres',
+      host: conexion.host ?? process.env.DB_HOST,
+      port: conexion.port ?? parseInt(process.env.DB_PORT ?? '5435', 10),
+      username: process.env.DB_USERNAME,
+      password: process.env.DB_PASSWORD,
+      database: nombre,
+      entities,
+      migrations,
+    });
+    try {
+      await dataSource.initialize();
+      await dataSource.runMigrations();
+    } finally {
+      if (dataSource.isInitialized) await dataSource.destroy();
+    }
   }
 
   /**
@@ -47,10 +120,9 @@ export class CentroTenantAdminService {
    *     inmediato a /login y administrar su propio tenant.
    *
    * Conexion directa y aislada (no via CentroDataSourceFactory) para evitar
-   * una dependencia circular entre ambos servicios; best-effort: si la base
-   * de datos del tenant aun no existe o no esta migrada, no bloquea la
-   * creacion del tenant — solo se registra el error y no se devuelven
-   * credenciales (adminInicial queda en null).
+   * una dependencia circular entre ambos servicios. Para cuando se llega aqui
+   * la base ya fue creada y migrada en crear(), asi que un fallo aqui si se
+   * registra como advertencia pero ya no debería ser por base inexistente.
    */
   private async sembrarEpsasDb(dto: CreateCentroTenantDto): Promise<AdminInicialCreado | null> {
     const dataSource = new DataSource({
