@@ -1,8 +1,6 @@
 import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
-import { InjectQueue } from '@nestjs/bullmq';
-import { Queue } from 'bullmq';
 import * as bcrypt from 'bcrypt';
 import { Response } from 'express';
 import { Credencial } from '../../../credenciales/infrastructure/persistence/credencial.entity';
@@ -14,8 +12,6 @@ import { Rol } from '../../../roles/infrastructure/persistence/rol.entity';
 import { Aplicativo } from '../../../aplicativos/infrastructure/persistence/aplicativo.entity';
 import { LoginDto } from '../dtos/login.dto';
 import { RegisterDto } from '../dtos/register.dto';
-import { ACCESO_QUEUE } from '../../../queue/queue.constants';
-import { RegistrarAccesoJob } from '../../../queue/processors/acceso.processor';
 import { CentroTenantContextService } from '../../../common/centro-tenant-context.service';
 import { CentroTenantRepository } from '../../../centro-tenant-admin/infrastructure/persistence/centro-tenant.repository';
 import { CentroDataSourceFactory } from '../../../database/centro-datasource.factory';
@@ -23,8 +19,6 @@ import { CentroDataSourceFactory } from '../../../database/centro-datasource.fac
 @Injectable()
 export class AuthService {
   constructor(
-    @InjectQueue(ACCESO_QUEUE)
-    private readonly accesoQueue: Queue<RegistrarAccesoJob>,
     private readonly jwtService: JwtService,
     private readonly centroTenantRepo: CentroTenantRepository,
     private readonly centroDataSourceFactory: CentroDataSourceFactory,
@@ -169,18 +163,15 @@ export class AuthService {
       });
     }
 
+    // Registro directo y síncrono del acceso — antes también se encolaba una
+    // copia idéntica vía BullMQ (AccesoProcessor), lo que duplicaba la fila
+    // en `accesos` en cada login. Se dejó solo esta vía porque es la que
+    // garantiza que el registro exista de inmediato (usada por el indicador
+    // "conectado" de /admin/centros-tenant).
     try {
       await this.accesoRepository.save(
         this.accesoRepository.create({ token, usuarioId: credencial.usuario.idUsuario, fechaIngreso: new Date(), estado: 'activo' as any }),
       );
-    } catch (_) {}
-    try {
-      await this.accesoQueue.add('registrar-acceso', {
-        token,
-        usuarioId: credencial.usuario.idUsuario,
-        fechaIngreso: new Date(),
-        centroSlug: CentroTenantContextService.getSlug(),
-      });
     } catch (_) {}
 
     return {

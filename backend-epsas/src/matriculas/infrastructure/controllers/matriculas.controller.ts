@@ -7,7 +7,7 @@ import { UpdateMatriculaDto } from '../../application/dtos/update-matricula.dto'
 import { JwtAuthGuard } from '../../../auth/jwt-auth.guard';
 
 @Controller('matriculas')
-//@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard)
 export class MatriculasController {
     constructor(private readonly matriculasService: MatriculasService) { }
 

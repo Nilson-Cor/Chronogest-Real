@@ -1,10 +1,11 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
 import { PermisoService } from '../../application/services/permisos.service';
 import { CreatePermisoDto } from '../../application/dtos/create-permisos.dto';
 import { UpdatePermisoDto } from '../../application/dtos/update-permisos.dto';
-
+import { JwtAuthGuard } from '../../../auth/jwt-auth.guard';
 
 @Controller('permisos')
+@UseGuards(JwtAuthGuard)
 export class PermisoController {
     constructor(private readonly permisoService: PermisoService) {}
 

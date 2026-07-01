@@ -1,9 +1,11 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@nestjs/common';
 import { ModuloService } from '../../application/services/modulos.service';
 import { CreateModuloDto } from '../../application/dtos/create-modulo.dto';
 import { UpdateModuloDto } from '../../application/dtos/update-modulo.dto';
+import { JwtAuthGuard } from '../../../auth/jwt-auth.guard';
 
 @Controller('modulos')
+@UseGuards(JwtAuthGuard)
 export class ModuloController {
     constructor(private readonly moduloService: ModuloService) {}
 

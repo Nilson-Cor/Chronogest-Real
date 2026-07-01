@@ -27,7 +27,7 @@ import { RootAuthGuard } from './infrastructure/guards/root-auth.guard';
         port: cfg.get<number>('MASTER_DB_PORT', 5435),
         username: cfg.get<string>('MASTER_DB_USER', 'postgres'),
         password: cfg.getOrThrow<string>('MASTER_DB_PASSWORD'),
-        database: cfg.get<string>('MASTER_DB_NAME', 'master_db'),
+        database: cfg.get<string>('MASTER_DB_NAME', 'chronogest_master_db'),
         synchronize: cfg.get<string>('NODE_ENV', 'development') !== 'production',
         logging: false,
         entities: [CentroTenant, RootUser],

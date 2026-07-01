@@ -7,13 +7,14 @@ import { ApiService } from '../../core/services/api.service';
 import { HttpClient } from '@angular/common/http';
 import { LucideAngularModule } from 'lucide-angular';
 import { ToastComponent } from '../components/toast.component';
+import { AuthSrcDirective } from '../directives/auth-src.directive';
 import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-layout',
   imports: [
     RouterOutlet, RouterLink, RouterLinkActive,
-    LucideAngularModule, ToastComponent,
+    LucideAngularModule, ToastComponent, AuthSrcDirective,
   ],
   template: `
     <div class="app-layout" [class.dark]="theme.isDark()">
@@ -110,7 +111,7 @@ import { environment } from '../../../environments/environment';
             <div class="user-menu" (click)="menuOpen.update(v => !v)">
               <div class="avatar">
                 @if (user()?.fotoPerfil) {
-                  <img [src]="apiOrigin + user()!.fotoPerfil" alt="avatar">
+                  <img [appAuthSrc]="apiOrigin + user()!.fotoPerfil" alt="avatar">
                 } @else {
                   {{ initials() }}
                 }

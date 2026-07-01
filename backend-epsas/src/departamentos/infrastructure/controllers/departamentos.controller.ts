@@ -5,7 +5,7 @@ import { CreateDepartamentoDto } from '../../application/dtos/create-departament
 import { UpdateDepartamentoDto } from '../../application/dtos/update-departamento.dto';
 
 @Controller('departamentos')
-// @UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard)
 export class DepartamentosController {
     constructor(private readonly departamentosService: DepartamentosService) { }
 

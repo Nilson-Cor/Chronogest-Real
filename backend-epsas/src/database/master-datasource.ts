@@ -12,7 +12,7 @@ export const MasterDataSource = new DataSource({
   port: Number(process.env.MASTER_DB_PORT ?? 5435),
   username: process.env.MASTER_DB_USER ?? 'postgres',
   password: process.env.MASTER_DB_PASSWORD,
-  database: process.env.MASTER_DB_NAME ?? 'master_db',
+  database: process.env.MASTER_DB_NAME ?? 'chronogest_master_db',
   synchronize: false,
   logging: false,
   entities: [CentroTenant, RootUser],

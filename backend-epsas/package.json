@@ -26,7 +26,9 @@
     "migration:generate:master": "typeorm-ts-node-commonjs migration:generate -d src/database/master-datasource.ts",
     "migration:run:master": "typeorm-ts-node-commonjs migration:run -d src/database/master-datasource.ts",
     "seed:root": "ts-node -r tsconfig-paths/register scripts/seed-root-user.ts",
-    "verificar:multitenant": "ts-node -r tsconfig-paths/register scripts/verificar-multitenant.ts"
+    "verificar:multitenant": "ts-node -r tsconfig-paths/register scripts/verificar-multitenant.ts",
+    "backup:all": "ts-node -r tsconfig-paths/register scripts/backup-databases.ts",
+    "migrar:uploads-tenant": "ts-node -r tsconfig-paths/register scripts/migrar-uploads-a-tenant.ts"
   },
   "dependencies": {
     "@nestjs/bullmq": "^11.0.4",
@@ -44,6 +46,7 @@
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
     "cookie-parser": "^1.4.7",
+    "jsonwebtoken": "^9.0.3",
     "ioredis": "^5.10.1",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",

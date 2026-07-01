@@ -6,11 +6,12 @@ import { ApiService } from '../../../core/services/api.service';
 import { DIAS_LABELS } from '../../../core/models/user.model';
 import { LucideAngularModule } from 'lucide-angular';
 import { ToastService } from '../../../core/services/toast.service';
+import { AuthSrcDirective } from '../../../shared/directives/auth-src.directive';
 import { environment } from '../../../../environments/environment';
 
 @Component({
   selector: 'app-admin-solicitudes',
-  imports: [FormsModule, DatePipe, UpperCasePipe, LucideAngularModule],
+  imports: [FormsModule, DatePipe, UpperCasePipe, LucideAngularModule, AuthSrcDirective],
   template: `
     <div class="page-header">
       <div>
@@ -198,7 +199,7 @@ import { environment } from '../../../../environments/environment';
                           <lucide-icon name="paperclip" [size]="12"></lucide-icon>
                           @if (esImagen(s.archivoAdjuntoUrl)) {
                             <div class="img-preview-wrap">
-                              <img [src]="urlCompleta(s.archivoAdjuntoUrl)" class="adjunto-img"
+                              <img [appAuthSrc]="urlCompleta(s.archivoAdjuntoUrl)" class="adjunto-img"
                                    (click)="abrirImagen(s.archivoAdjuntoUrl)" alt="Adjunto" title="Clic para ampliar">
                               <div class="img-overlay" (click)="abrirImagen(s.archivoAdjuntoUrl)">
                                 <lucide-icon name="zoom-in" [size]="18"></lucide-icon>
@@ -249,7 +250,7 @@ import { environment } from '../../../../environments/environment';
         <button class="lightbox-close" (click)="imagenAmpliada.set(null)">
           <lucide-icon name="x" [size]="20"></lucide-icon>
         </button>
-        <img [src]="urlCompleta(imagenAmpliada()!)" class="lightbox-img" alt="Vista ampliada">
+        <img [appAuthSrc]="urlCompleta(imagenAmpliada()!)" class="lightbox-img" alt="Vista ampliada">
         <a [href]="urlCompleta(imagenAmpliada()!)" target="_blank" class="lightbox-download">
           <lucide-icon name="download" [size]="13"></lucide-icon> Descargar
         </a>

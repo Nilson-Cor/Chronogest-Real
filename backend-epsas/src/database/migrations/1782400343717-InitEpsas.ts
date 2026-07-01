@@ -4,6 +4,9 @@ export class InitEpsas1782400343717 implements MigrationInterface {
     name = 'InitEpsas1782400343717'
 
     public async up(queryRunner: QueryRunner): Promise<void> {
+        // Requerida por los DEFAULT uuid_generate_v4() de esta migración — no
+        // viene habilitada por defecto en una base Postgres nueva.
+        await queryRunner.query(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`);
         await queryRunner.query(`CREATE TABLE "programas" ("id_programa" uuid NOT NULL DEFAULT uuid_generate_v4(), "nombre" character varying NOT NULL, "tipo" character varying, CONSTRAINT "PK_f79ffc9efe1b731b5ab1dcd3c62" PRIMARY KEY ("id_programa"))`);
         await queryRunner.query(`CREATE TABLE "matriculas" ("idMatricula" uuid NOT NULL DEFAULT uuid_generate_v4(), "persona" uuid NOT NULL, "curso" uuid NOT NULL, "estado" character varying, "fecha_matricula" date, "avance" numeric(5,2) NOT NULL DEFAULT '0', CONSTRAINT "PK_ad9f70f1ae698c2da3252b2c9a7" PRIMARY KEY ("idMatricula"))`);
         await queryRunner.query(`CREATE TABLE "modulos" ("id_modulo" SERIAL NOT NULL, "aplicativo" uuid NOT NULL, "modulo" character varying(200) NOT NULL DEFAULT '', CONSTRAINT "PK_68ad50fa332064a72e31fcdf87a" PRIMARY KEY ("id_modulo"))`);
